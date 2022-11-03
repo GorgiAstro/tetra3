@@ -1,0 +1,13 @@
+[project]
+name = "tetra3"
+version = "0.1.0"
+description = "a fast lost-in-space plate solver for star trackers"
+
+[build-system]
+requires = [
+	"setuptools>=61.0.0",
+	"numpy>=1.21.1", 
+	"Pillow>=8.3.1", 
+	"scipy>=1.7.1"
+]
+build-backend = "setuptools.build_meta"

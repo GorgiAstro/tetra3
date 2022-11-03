@@ -21,4 +21,4 @@
 
 # Databases except the default
 *.npz
-!/default_database.npz
+!default_database.npz
