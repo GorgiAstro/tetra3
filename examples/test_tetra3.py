@@ -8,6 +8,7 @@ sys.path.append('..')
 from tetra3 import Tetra3
 from PIL import Image
 from pathlib import Path
+import quaternion
 
 # Create instance and load default_database (built with max_fov=12 and the rest as default)
 t3 = Tetra3('default_database')
@@ -18,4 +19,5 @@ for impath in path.glob('*.tiff'):
     print('Solving for image at: ' + str(impath))
     with Image.open(str(impath)) as img:
         solved = t3.solve_from_image(img)  # Adding e.g. fov_estimate=11.4, fov_max_error=.1 improves performance
-    print('Solution: ' + str(solved))
+    quat = quaternion.from_rotation_matrix(solved['Rotation Matrix'], nonorthogonal=False)
+    print('Solution: ' + str(solved) + '\nQuaternion: ' + str(quat))
