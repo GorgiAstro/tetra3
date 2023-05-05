@@ -23,7 +23,7 @@ arguments to :meth:`Tetra3.solve_from_image` to use them when solving your image
 Note:
     If you wish to build you own database (typically for a different field-of-view) you must
     download a star catalogue. tetra3 supports three options:
-    
+
     * The 285KB Yale Bright Star Catalog 'BSC5' containing 9,110 stars. This is complete to
       to about magnitude seven and is sufficient for >10 deg field-of-view setups.
     * The 51MB Hipparcos Catalogue 'hip_main' containing 118,218 stars. This contains about
@@ -362,7 +362,7 @@ class Tetra3():
         else:
             self._logger.debug('Not a string, use as path directly')
             path = Path(path).with_suffix('.npz')
-            
+
         self._logger.info('Saving database to: ' + str(path))
         # Pack properties as numpy structured array
         props_packed = np.array((self._db_props['pattern_mode'],
@@ -396,7 +396,7 @@ class Tetra3():
         Note:
             If you wish to build you own database (typically for a different field-of-view) you must
             download a star catalogue. tetra3 supports three options:
-            
+
             * The 285KB Yale Bright Star Catalog 'BSC5' containing 9,110 stars. This is complete to
               to about magnitude seven and is sufficient for >10 deg field-of-view setups.
             * The 51MB Hipparcos Catalogue 'hip_main' containing 118,218 stars. This contains about
@@ -450,14 +450,14 @@ class Tetra3():
         pattern_size = 4
         pattern_bins = 25
         current_year = datetime.utcnow().year
-        
+
         catalog_file_full_pathname = Path(__file__).parent / star_catalog
         # Add .dat suffix for hip and tyc if not present
         if star_catalog in ('hip_main', 'tyc_main') and not catalog_file_full_pathname.suffix:
             catalog_file_full_pathname = catalog_file_full_pathname.with_suffix('.dat')
-        
-        assert catalog_file_full_pathname.exists(), 'No star catalogue found at ' +str(     catalog_file_full_pathname)   
-         
+
+        assert catalog_file_full_pathname.exists(), 'No star catalogue found at ' +str(     catalog_file_full_pathname)
+
         # Calculate number of star catalog entries:
         if star_catalog == 'bsc5':
             header_length = 28
@@ -467,16 +467,16 @@ class Tetra3():
             num_entries = sum(1 for _ in open(catalog_file_full_pathname))
 
         self._logger.info('Loading catalogue ' + str(star_catalog) + ' with ' + str(num_entries) \
-             + ' star entries.') 
+             + ' star entries.')
 
         # Preallocate star table:
-        star_table = np.zeros((num_entries, 6), dtype=np.float32)        
-        
+        star_table = np.zeros((num_entries, 6), dtype=np.float32)
+
         # Read magnitude, RA, and Dec from star catalog:
         if star_catalog == 'bsc5':
             bsc5_data_type = [('ID', np.float32), ('RA1950', np.float64),
                               ('Dec1950', np.float64), ('type', np.int16),
-                              ('mag', np.int16), ('RA_pm', np.float32), ('Dec_PM', np.float32)]            
+                              ('mag', np.int16), ('RA_pm', np.float32), ('Dec_PM', np.float32)]
             with open(catalog_file_full_pathname, 'rb') as star_catalog_file:
                 star_catalog_file.seek(header_length)  # skip header
                 reader = np.fromfile(star_catalog_file, dtype=bsc5_data_type, count=num_entries)
@@ -521,27 +521,27 @@ class Tetra3():
                                np.sin(star_table[i,0])*np.cos(star_table[i,1]),
                                np.sin(star_table[i,1])])
             star_table[i,2:5] = vector
-                
+
         # Filter for maximum number of stars in FOV and doubles
         keep_for_patterns = np.full(star_table.shape[0], False)
         keep_for_verifying = np.full(star_table.shape[0], False)
         # Keep the first one and skip index 0 in loop
         keep_for_patterns[0] = True
         keep_for_verifying[0] = True
-        
+
         # Insert all stars in a KD-tree for fast neighbour lookup
         self._logger.info('Trimming database to requested star density.')
         all_star_vectors = star_table[:, 2:5]
         vector_kd_tree = KDTree(all_star_vectors)
-        
+
         # Separation distance (diameter) between stars for correct density
         pattern_stars_separation = 1.1 * max_fov / np.sqrt(pattern_stars_per_fov)
         verification_stars_separation = 1.1 * max_fov / np.sqrt(verification_stars_per_fov)
         self._logger.info('Separating pattern stars by '
             + str(np.rad2deg(pattern_stars_separation)) + 'deg.')
-        self._logger.info('Separating verification stars by ' 
+        self._logger.info('Separating verification stars by '
             + str(np.rad2deg(verification_stars_separation)) + 'deg.')
-        
+
         # Loop through all stars in database
         for star_ind in range(1, num_entries):
             vector = all_star_vectors[star_ind, :]
@@ -565,7 +565,7 @@ class Tetra3():
         # Trim down star table and update indexing for pattern stars
         star_table = star_table[keep_for_verifying, :]
         pattern_stars = (np.cumsum(keep_for_verifying)-1)[keep_for_patterns]
-        
+
         self._logger.info('Stars for pattern matching: ' + str(np.sum(keep_for_patterns)) + '.')
         self._logger.info('Stars for verification: ' + str(np.sum(keep_for_verifying)) + '.')
 
@@ -577,11 +577,11 @@ class Tetra3():
         pattern_kd_tree = KDTree(star_table[:, 2:5])
         # Stars available for patterning, to start remove those only for verification
         available_stars = [True if k in pattern_stars else False for k in range(star_table.shape[0])]
-        
+
         pattern_list = []
         # initialize pattern, which will contain pattern_size star ids
         pattern = [None] * pattern_size
-        
+
         for (index, pattern[0]) in enumerate(pattern_stars):
             # Remove star from consideration
             available_stars[pattern[0]] = False
@@ -596,27 +596,27 @@ class Tetra3():
                 # Unpack and measure angle between all vectors
                 vectors = star_table[pattern, 2:5]
                 dots = np.dot(vectors, vectors.T)
-                
+
                 if dots.min() > np.cos(max_fov):
                     # Maximum angle is within the FOV limit, append
                     pattern_list.append(pattern.copy())
-        
+
         # Create all pattens by calculating and sorting edge ratios and inserting into hash table
         self._logger.info('Found ' + str(len(pattern_list)) + ' patterns. Building catalogue.')
         catalog_length = 2 * len(pattern_list)
         pattern_catalog = np.zeros((catalog_length, pattern_size), dtype=np.uint16)
-        
+
         # Indices to extract from dot product matrix (above diagonal)
         upper_tri_index = np.triu_indices(pattern_size, 1)
-        
+
         # Go through each pattern and insert to the catalogue
         for (index, pattern) in enumerate(pattern_list):
             if index % 1000000 == 0 and index > 0:
                 self._logger.info('Inserting pattern number: ' + str(index))
-            
+
             # retrieve the vectors of the stars in the pattern
             vectors = star_table[pattern, 2:5]
-            
+
             pattern_dot_products = np.dot(vectors, vectors.T)[upper_tri_index]
             edge_angles_sorted = np.sort(np.arccos(pattern_dot_products))
             edge_ratios = edge_angles_sorted[:-1] / edge_angles_sorted[-1]
@@ -624,7 +624,7 @@ class Tetra3():
             # convert edge ratio float to hash code by binning
             hash_code = tuple((edge_ratios * pattern_bins).astype(int))
             hash_index = _key_to_index(hash_code, pattern_bins, catalog_length)
-            
+
             # use quadratic probing to find an open space in the pattern catalog to insert
             for index in ((hash_index + offset ** 2) % catalog_length
                           for offset in itertools.count()):
@@ -632,7 +632,7 @@ class Tetra3():
                 if not pattern_catalog[index][0]:
                     pattern_catalog[index] = pattern
                     break
-        
+
         self._logger.info('Finished generating database.')
         self._logger.info('Size of uncompressed star table: %i Bytes.' %star_table.nbytes)
         self._logger.info('Size of uncompressed pattern catalog: %i Bytes.' %pattern_catalog.nbytes)
@@ -747,12 +747,12 @@ class Tetra3():
                                             star_centroids[:pattern_checking_stars], p_size):
             # compute star vectors using an estimate for the field-of-view in the x dimension
             pattern_vectors = compute_vectors(image_centroids, fov_estimate)
-            
+
             pattern_dot_products = np.dot(pattern_vectors, pattern_vectors.T)[upper_tri_index]
             edge_angles_sorted = np.sort(np.arccos(pattern_dot_products))
             pattern_largest_edge = edge_angles_sorted[-1]
             pattern_edge_ratios = edge_angles_sorted[:-1] / pattern_largest_edge
-                
+
             # Possible hash codes to look up
             hash_code_space = [range(max(low, 0), min(high+1, p_bins)) for (low, high)
                                in zip(((pattern_edge_ratios - p_max_err) * p_bins).astype(int),
@@ -790,7 +790,7 @@ class Tetra3():
 
                     # Calculate actual fov by scaling estimate
                     fov = catalog_largest_edge / pattern_largest_edge * fov_estimate
-                    
+
                     # If the FOV is incorrect we can skip this immediately
                     if fov_max_error is not None and abs(fov - fov_estimate) > fov_max_error:
                         continue
